@@ -33,6 +33,7 @@ export const useChatStore = create((set, get) => ({
       set({ isMessagesLoading: false });
     }
   },
+
   sendMessage: async (messageData) => {
     const { selectedUser, messages } = get();
     try {
@@ -48,20 +49,41 @@ export const useChatStore = create((set, get) => ({
     if (!selectedUser) return;
 
     const socket = useAuthStore.getState().socket;
+    if (!socket) {
+      console.log("Socket not available, retrying in 1 second...");
+      setTimeout(() => get().subscribeToMessages(), 1000);
+      return;
+    }
 
+    // Remove any existing listeners to prevent duplicates
+    socket.off("newMessage");
+
+    // Add new message listener
     socket.on("newMessage", (newMessage) => {
+      const { messages } = get();
       const isMessageSentFromSelectedUser = newMessage.senderId === selectedUser._id;
-      if (!isMessageSentFromSelectedUser) return;
-
-      set({
-        messages: [...get().messages, newMessage],
-      });
+      const isMessageSentToSelectedUser = newMessage.receiverId === selectedUser._id;
+      
+      if (isMessageSentFromSelectedUser || isMessageSentToSelectedUser) {
+        set({
+          messages: [...messages, newMessage],
+        });
+      }
     });
+
+    // Return cleanup function
+    return () => {
+      if (socket) {
+        socket.off("newMessage");
+      }
+    };
   },
 
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
-    socket.off("newMessage");
+    if (socket) {
+      socket.off("newMessage");
+    }
   },
 
   setSelectedUser: (selectedUser) => set({ selectedUser }),

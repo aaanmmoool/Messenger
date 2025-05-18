@@ -2,7 +2,7 @@ import User from "../models/user.model.js";
 import Message from "../models/message.model.js";
 
 import cloudinary from "../lib/cloudinary.js";
-import { getReceiverSocketId, io } from "../lib/socket.js";
+import { getReceiverSocketId, io, userSocketMap } from "../lib/socket.js";
 
 export const getUsersForSidebar = async (req, res) => {
   try {
@@ -43,7 +43,6 @@ export const sendMessage = async (req, res) => {
 
     let imageUrl;
     if (image) {
-      // Upload base64 image to cloudinary
       const uploadResponse = await cloudinary.uploader.upload(image);
       imageUrl = uploadResponse.secure_url;
     }
@@ -57,10 +56,45 @@ export const sendMessage = async (req, res) => {
 
     await newMessage.save();
 
-    const receiverSocketId = getReceiverSocketId(receiverId);
+    // Convert IDs to strings for consistent comparison
+    const receiverIdStr = receiverId.toString();
+    const senderIdStr = senderId.toString();
+
+    // Get socket IDs for both sender and receiver
+    const receiverSocketId = getReceiverSocketId(receiverIdStr);
+    const senderSocketId = getReceiverSocketId(senderIdStr);
+
+    console.log("Socket mappings before sending:", {
+      receiverId: receiverIdStr,
+      senderId: senderIdStr,
+      receiverSocketId,
+      senderSocketId,
+      allMappings: userSocketMap
+    });
+
+    // Emit to both sender and receiver
     if (receiverSocketId) {
+      console.log("Emitting to receiver:", { receiverId: receiverIdStr, receiverSocketId });
       io.to(receiverSocketId).emit("newMessage", newMessage);
+    } else {
+      console.log("Receiver not connected:", receiverIdStr);
     }
+
+    if (senderSocketId) {
+      console.log("Emitting to sender:", { senderId: senderIdStr, senderSocketId });
+      io.to(senderSocketId).emit("newMessage", newMessage);
+    } else {
+      console.log("Sender not connected:", senderIdStr);
+    }
+
+    // Log for debugging
+    console.log("Message sent:", {
+      messageId: newMessage._id,
+      senderId: senderIdStr,
+      receiverId: receiverIdStr,
+      receiverSocketId,
+      senderSocketId
+    });
 
     res.status(201).json(newMessage);
   } catch (error) {
