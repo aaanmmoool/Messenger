@@ -11,5 +11,18 @@ export default defineConfig({
     hmr: {
       clientPort: 5173 // Ensure HMR works across network
     }
-  }
+  },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+      },
+    },
+  },
+  base: '/', // Ensure assets are loaded from the root path
 })

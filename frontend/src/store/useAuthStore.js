@@ -7,7 +7,7 @@ const BASE_URL = import.meta.env.MODE === "development"
   ? window.location.hostname === "localhost" 
     ? "http://localhost:5001" 
     : `http://${window.location.hostname}:5001`
-  : "/";
+  : window.location.origin;
 
 export const useAuthStore = create((set, get) => ({
   authUser: null,
@@ -90,6 +90,7 @@ export const useAuthStore = create((set, get) => ({
 
     // Disconnect existing socket if any
     if (get().socket?.connected) {
+      console.log("Disconnecting existing socket");
       get().socket.disconnect();
     }
 
@@ -104,6 +105,7 @@ export const useAuthStore = create((set, get) => ({
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
       timeout: 10000,
+      transports: ['websocket', 'polling'],
     });
 
     socket.on("connect", () => {
@@ -113,6 +115,13 @@ export const useAuthStore = create((set, get) => ({
 
     socket.on("connect_error", (error) => {
       console.error("Socket connection error:", error);
+      // Attempt to reconnect after a delay
+      setTimeout(() => {
+        if (!socket.connected) {
+          console.log("Attempting to reconnect...");
+          socket.connect();
+        }
+      }, 5000);
     });
 
     socket.on("disconnect", (reason) => {

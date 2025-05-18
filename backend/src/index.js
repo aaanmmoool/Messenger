@@ -33,7 +33,8 @@ const allowedOrigins = [
   "http://localhost:5175",
   "http://192.168.29.44:5173",
   "http://192.168.29.44:5174",
-  "http://192.168.29.44:5175"
+  "http://192.168.29.44:5175",
+  "https://messenger-roxo.onrender.com"  // Add your deployment domain
 ];
 
 app.use(
@@ -59,10 +60,21 @@ app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../frontend/dist")));
+  // Serve static files from the dist directory
+  app.use(express.static(path.join(__dirname, "../frontend/dist"), {
+    setHeaders: (res, path) => {
+      // Set correct MIME types for CSS and JS files
+      if (path.endsWith('.css')) {
+        res.setHeader('Content-Type', 'text/css');
+      } else if (path.endsWith('.js')) {
+        res.setHeader('Content-Type', 'application/javascript');
+      }
+    }
+  }));
 
+  // Handle all other routes by serving index.html
   app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
+    res.sendFile(path.join(__dirname, "../frontend/dist/index.html"));
   });
 }
 
